@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Query, Depends
 from mangum import Mangum
 from typing import Optional, List
 from datetime import datetime
-from database import SessionLocal, engine
+from database import SessionLocal, engine, create_tables
 from models import Base, User
 from schemas import UserCreate, UserResponse, UserQueryResponse
 from sqlalchemy.orm import Session
@@ -25,7 +25,7 @@ if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
     patch_all()
 
 # Create database tables
-Base.metadata.create_all(bind=engine)
+create_tables()
 
 # Configure FastAPI app with environment-specific settings
 app = FastAPI(
