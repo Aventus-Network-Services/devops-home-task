@@ -1,5 +1,6 @@
 import pytest
 import os
+import sys
 import docker
 import boto3
 import time
@@ -7,6 +8,16 @@ import traceback
 from pathlib import Path
 from typing import Generator
 import requests
+
+# Add the project root directory to sys.path
+# This will allow imports to work without 'app.' prefix
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+    # Also add the app directory directly to handle imports like 'from database import Base'
+    sys.path.insert(0, os.path.join(project_root, 'app'))
+
+# Now import the modules (these will use the modified sys.path)
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from app.database import Base
