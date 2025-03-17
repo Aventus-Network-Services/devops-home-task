@@ -9,6 +9,7 @@ from app.main import handler
 from types import SimpleNamespace
 import time
 import uuid
+from datetime import datetime
 
 @pytest.fixture
 def lambda_context():
@@ -361,3 +362,50 @@ def test_get_users_with_s3_storage_lambda(mock_s3_bucket, lambda_context, popula
     for user in body["users"]:
         assert 25 <= user["age"] <= 50
         assert "New" in user["city"]
+
+@pytest.fixture
+def mock_s3_bucket(monkeypatch):
+    """Create a mock S3 bucket for testing."""
+    class MockS3Client:
+        def __init__(self):
+            self.objects = {}
+        
+        def put_object(self, Bucket, Key, Body):
+            self.objects[(Bucket, Key)] = Body
+            return {"ETag": "mock-etag"}
+        
+        def get_object(self, Bucket, Key):
+            if (Bucket, Key) not in self.objects:
+                raise Exception(f"Object {Key} not found in bucket {Bucket}")
+            return {
+                "Body": type('obj', (object,), {
+                    "read": lambda self: self.objects.get((Bucket, Key), b"{}"),
+                    "objects": self.objects
+                })
+            }
+    
+    mock_client = MockS3Client()
+    
+    class MockS3Handler:
+        def store_query_result(self, query_params, results):
+            key = f"mock-s3-file-{hash(str(query_params))}.json"
+            data = {
+                "timestamp": str(datetime.utcnow()),
+                "query_parameters": query_params,
+                "results": results,
+                "result_count": len(results)
+            }
+            mock_client.put_object(
+                Bucket="user-queries",
+                Key=key,
+                Body=json.dumps(data).encode('utf-8')
+            )
+            return key
+    
+    # Replace the real S3Handler with our mock
+    monkeypatch.setattr("app.main.s3_handler", MockS3Handler())
+    
+    # Set test flag for S3 operations
+    monkeypatch.setenv("TESTING", "True")
+    
+    return mock_client

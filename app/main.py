@@ -2,9 +2,9 @@ from fastapi import FastAPI, HTTPException, Query, Depends
 from mangum import Mangum
 from typing import Optional, List
 from datetime import datetime
-from .database import SessionLocal, engine
-from .models import Base, User
-from .schemas import UserCreate, UserResponse, UserQueryResponse
+from database import SessionLocal, engine
+from models import Base, User
+from schemas import UserCreate, UserResponse, UserQueryResponse
 from sqlalchemy.orm import Session
 from faker import Faker
 import random
@@ -13,7 +13,7 @@ from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.event_handler import APIGatewayRestResolver
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_xray_sdk.core import patch_all
-from .s3_utils import S3Handler
+from s3_utils import S3Handler
 import sys
 
 # Initialize AWS Lambda Powertools
@@ -152,12 +152,16 @@ async def delete_user(user_id: int, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail="Error deleting user")
 
-# Handler for AWS Lambda
+# Update the Lambda handler to use compatible Mangum parameters
 @logger.inject_lambda_context
 @tracer.capture_lambda_handler
-def handler(event: dict, context: LambdaContext) -> dict:
-    # Initialize Mangum handler with custom configurations for Lambda
-    asgi_handler = Mangum(app, api_gateway_base_path=os.getenv("API_GATEWAY_BASE_PATH", "/"))
+def lambda_handler(event: dict, context: LambdaContext) -> dict:
+    # Initialize Mangum handler with parameters supported in v0.17.0
+    asgi_handler = Mangum(
+        app, 
+        api_gateway_base_path=os.getenv("API_GATEWAY_BASE_PATH", "/"),
+        lifespan="off"
+    )
     # Handle the event
     return asgi_handler(event, context)
 
