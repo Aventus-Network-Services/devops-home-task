@@ -2,9 +2,9 @@ from fastapi import FastAPI, HTTPException, Query, Depends
 from mangum import Mangum
 from typing import Optional, List
 from datetime import datetime
-from database import SessionLocal, engine, create_tables
-from models import Base, User
-from schemas import UserCreate, UserResponse, UserQueryResponse
+from app.database import SessionLocal, engine, create_tables
+from app.models import Base, User
+from app.schemas import UserCreate, UserResponse, UserQueryResponse
 from sqlalchemy.orm import Session
 from faker import Faker
 import random
@@ -13,7 +13,7 @@ from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.event_handler import APIGatewayRestResolver
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_xray_sdk.core import patch_all
-from s3_utils import S3Handler
+from app.s3_utils import S3Handler
 import sys
 
 # Initialize AWS Lambda Powertools

@@ -5,7 +5,7 @@ import os
 import requests
 from pathlib import Path
 import boto3
-from app.main import handler
+from app.main import lambda_handler as handler
 from types import SimpleNamespace
 import time
 import uuid

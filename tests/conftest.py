@@ -110,7 +110,7 @@ def test_db_engine():
     # Create a new metadata for tests to avoid conflicts
     test_metadata = MetaData()
     for table in Base.metadata.tables.values():
-        table.tometadata(test_metadata)
+        table.to_metadata(test_metadata)
     
     # Create tables using test metadata
     test_metadata.create_all(bind=engine)
