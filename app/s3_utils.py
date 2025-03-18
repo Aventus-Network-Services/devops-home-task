@@ -56,10 +56,25 @@ class S3Handler:
                 logger.error(f"Error with S3 bucket: {str(e)}")
                 # Log but don't crash - Lambda should keep running
 
-    def store_query_result(self, query_params: dict, results: list):
-        """
-        Store query results in S3 with a unique filename based on timestamp and UUID
-        """
+    def store_query_result(self, query_params, results):
+        """Store query results in S3 and return the file path"""
+        # Make sure results is properly serialized
+        serialized_results = []
+        for item in results:
+            if hasattr(item, '__dict__'):
+                # This is an ORM object, extract only the data we need
+                serialized_item = {}
+                for key, value in vars(item).items():
+                    if not key.startswith('_'):  # Skip SQLAlchemy internals
+                        if hasattr(value, 'isoformat'):  # Convert datetime
+                            serialized_item[key] = value.isoformat()
+                        else:
+                            serialized_item[key] = value
+                serialized_results.append(serialized_item)
+            else:
+                # Already a dict, just add it
+                serialized_results.append(item)
+                
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         unique_id = str(uuid.uuid4())
         filename = f"queries/{timestamp}_{unique_id}.json"
@@ -71,8 +86,8 @@ class S3Handler:
         data = {
             "timestamp": datetime.utcnow().isoformat(),
             "query_parameters": query_params,
-            "results": results,
-            "result_count": len(results)
+            "results": serialized_results,
+            "result_count": len(serialized_results)
         }
 
         try:

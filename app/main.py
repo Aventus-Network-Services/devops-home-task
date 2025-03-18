@@ -1,20 +1,39 @@
-from fastapi import FastAPI, HTTPException, Query, Depends
-from mangum import Mangum
+import os
+import sys
+import random
 from typing import Optional, List
 from datetime import datetime
-from app.database import SessionLocal, engine, create_tables
-from app.models import Base, User
-from app.schemas import UserCreate, UserResponse, UserQueryResponse
+import json
+
+# Smart import system that works in all environments
+try:
+    # First try relative imports (works in Docker)
+    from .database import SessionLocal, engine, create_tables
+    from .models import Base, User
+    from .schemas import UserCreate, UserResponse, UserQueryResponse
+    from .s3_utils import S3Handler
+except (ImportError, ValueError):
+    try:
+        # Then try absolute imports with 'app' prefix (works in tests)
+        from app.database import SessionLocal, engine, create_tables
+        from app.models import Base, User
+        from app.schemas import UserCreate, UserResponse, UserQueryResponse
+        from app.s3_utils import S3Handler
+    except ImportError:
+        # Finally try direct imports (works in Lambda)
+        from database import SessionLocal, engine, create_tables
+        from models import Base, User
+        from schemas import UserCreate, UserResponse, UserQueryResponse
+        from s3_utils import S3Handler
+
+from fastapi import FastAPI, HTTPException, Query, Depends
+from mangum import Mangum
 from sqlalchemy.orm import Session
 from faker import Faker
-import random
-import os
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.event_handler import APIGatewayRestResolver
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_xray_sdk.core import patch_all
-from app.s3_utils import S3Handler
-import sys
 
 # Initialize AWS Lambda Powertools
 logger = Logger()
@@ -114,6 +133,17 @@ async def get_users(
         users = query.all()
         logger.info(f"Found {len(users)} users matching the criteria")
         
+        # Create clean dictionaries that can be serialized to JSON
+        serialized_users = []
+        for user in users:
+            serialized_users.append({
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "age": user.age,
+                "city": user.city
+            })
+        
         # Store query results in S3
         query_params = {
             "name": name,
@@ -121,7 +151,7 @@ async def get_users(
             "min_age": min_age,
             "max_age": max_age
         }
-        s3_file = s3_handler.store_query_result(query_params, [user.__dict__ for user in users])
+        s3_file = s3_handler.store_query_result(query_params, serialized_users)
         
         return UserQueryResponse(
             users=users,

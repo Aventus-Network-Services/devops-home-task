@@ -388,6 +388,11 @@ def mock_s3_bucket(monkeypatch):
     
     class MockS3Handler:
         def store_query_result(self, query_params, results):
+            # Ensure results is serializable
+            for result in results:
+                if hasattr(result, '__dict__'):
+                    raise ValueError("Expected serialized dict, got object with __dict__")
+            
             key = f"mock-s3-file-{hash(str(query_params))}.json"
             data = {
                 "timestamp": str(datetime.utcnow()),
@@ -395,11 +400,19 @@ def mock_s3_bucket(monkeypatch):
                 "results": results,
                 "result_count": len(results)
             }
-            mock_client.put_object(
-                Bucket="user-queries",
-                Key=key,
-                Body=json.dumps(data).encode('utf-8')
-            )
+            
+            try:
+                # Test JSON serialization before storing
+                json_data = json.dumps(data).encode('utf-8')
+                mock_client.put_object(
+                    Bucket="user-queries",
+                    Key=key,
+                    Body=json_data
+                )
+            except TypeError as e:
+                print(f"JSON serialization error: {str(e)}")
+                raise
+                
             return key
     
     # Replace the real S3Handler with our mock

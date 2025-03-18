@@ -1,14 +1,20 @@
 from sqlalchemy import Column, Integer, String, DateTime
 import datetime
-import os
-import sys
 
-# Import Base from the right location
-from app.database import Base
+# Smart import system that works in all environments
+try:
+    # First try relative imports (works in Docker)
+    from .database import Base
+except (ImportError, ValueError):
+    try:
+        # Then try absolute imports with 'app' prefix (works in tests)
+        from app.database import Base
+    except ImportError:
+        # Finally try direct imports (works in Lambda)
+        from database import Base
 
 class User(Base):
     __tablename__ = "users"
-    # Add this parameter to allow the table to be redefined
     __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
@@ -16,4 +22,3 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     age = Column(Integer)
     city = Column(String)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow) 
